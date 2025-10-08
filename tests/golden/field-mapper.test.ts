@@ -11,7 +11,7 @@ describe('Field Mapper Golden Tests', () => {
     const row = campaignFixture.rows[0];
     const result = mapToStandardizedRow(row);
 
-    // Verify platform
+    // Verify platform s
     expect(result.platform).toBe('google_ads');
 
     // Verify account fields
