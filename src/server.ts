@@ -235,6 +235,40 @@ const logger = createLogger({ service: 'mcp-google-ads-jsonrpc' });
 app.use(cors());
 app.use(express.json());
 
+// Request timeout middleware (30 seconds)
+app.use((req: Request, res: Response, next) => {
+  req.setTimeout(30000, () => {
+    logger.error('Request timeout', { url: req.url, method: req.method });
+    if (!res.headersSent) {
+      res.status(408).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Request timeout'
+        },
+        id: null
+      });
+    }
+  });
+  next();
+});
+
+// Global error handler
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+  logger.error('Unhandled error in request', err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32603,
+        message: 'Internal server error',
+        data: process.env.NODE_ENV === 'development' ? err.message : undefined
+      },
+      id: null
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -256,6 +290,21 @@ app.get('/', (_req: Request, res: Response) => {
 
 // JSON-RPC endpoint for MCP
 app.post('/mcp', async (req: Request, res: Response) => {
+  // Set response timeout
+  res.setTimeout(25000, () => {
+    logger.error('Response timeout');
+    if (!res.headersSent) {
+      res.status(504).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Gateway timeout'
+        },
+        id: null
+      });
+    }
+  });
+
   logger.info('MCP JSON-RPC request received', { method: req.body?.method });
 
   try {
@@ -293,6 +342,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
         },
         id: request.id
       });
+      return;
     } else if (request.method === 'tools/list') {
       res.json({
         jsonrpc: '2.0',
@@ -301,6 +351,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
         },
         id: request.id
       });
+      return;
     } else if (request.method === 'tools/call') {
       const { name, arguments: args } = request.params;
 
@@ -409,6 +460,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
           result: result,
           id: request.id
         });
+        return;
       } catch (error: any) {
         const originalError = error.originalError || error;
 
@@ -485,6 +537,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
         },
         id: request.id
       });
+      return;
     }
   } catch (error: any) {
     logger.error('Error handling JSON-RPC request', error);
@@ -497,6 +550,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
       },
       id: req.body?.id || null
     });
+    return;
   }
 });
 
