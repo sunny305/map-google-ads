@@ -435,15 +435,15 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// MCP SSE endpoint
+// MCP SSE endpoint - GET to establish connection
 app.get('/mcp/sse', async (_req: Request, res: Response) => {
-  logger.info('New SSE connection request');
+  logger.info('New SSE connection request (GET)');
 
   // Create a new MCP server instance for this connection
   const server = createMCPServer();
 
   // Create SSE transport
-  const transport = new SSEServerTransport('/mcp/message', res);
+  const transport = new SSEServerTransport('/mcp/sse', res);
   transports.set(transport.sessionId, transport);
 
   // Clean up on close
@@ -456,6 +456,34 @@ app.get('/mcp/sse', async (_req: Request, res: Response) => {
   await server.connect(transport);
 
   logger.info('SSE connection established', { sessionId: transport.sessionId });
+});
+
+// MCP SSE endpoint - POST for messages
+app.post('/mcp/sse', async (req: Request, res: Response) => {
+  logger.info('SSE message received (POST)');
+
+  const sessionId = req.query.sessionId as string;
+
+  if (!sessionId) {
+    res.status(400).json({ error: 'Missing sessionId query parameter' });
+    return;
+  }
+
+  const transport = transports.get(sessionId);
+
+  if (!transport) {
+    res.status(404).json({ error: 'Session not found. Please establish connection via GET first.' });
+    return;
+  }
+
+  try {
+    await transport.handlePostMessage(req, res);
+  } catch (error: any) {
+    logger.error('Error handling POST message', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
 });
 
 // MCP message endpoint (POST)
