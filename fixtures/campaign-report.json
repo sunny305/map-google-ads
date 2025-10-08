@@ -1,0 +1,27 @@
+{
+  "_comment": "Sanitized Google Ads API response fixture for golden test",
+  "_description": "Campaign-level report for 7 days with metrics",
+  "rows": [
+    {
+      "customer": {
+        "id": "1234567890",
+        "descriptive_name": "Test Account",
+        "currency_code": "USD"
+      },
+      "campaign": {
+        "id": "9876543210",
+        "name": "Test Campaign"
+      },
+      "segments": {
+        "date": "2025-10-01"
+      },
+      "metrics": {
+        "cost_micros": "120500000",
+        "impressions": "25000",
+        "clicks": "430",
+        "conversions": "12",
+        "conversions_value": "1640000000"
+      }
+    }
+  ]
+}

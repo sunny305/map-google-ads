@@ -1,0 +1,88 @@
+{
+  "description": "Golden test fixture for Google Ads Campaign-level report with date breakdown",
+  "test_case": "LAST_7_DAYS campaign report",
+  "account_id": "1234567890",
+  "date_range": {
+    "start_date": "2025-09-24",
+    "end_date": "2025-09-30"
+  },
+  "raw_api_response": [
+    {
+      "customer_id": "1234567890",
+      "campaign_id": "9876543210",
+      "campaign_name": "BOFU - Sep Campaign",
+      "date": "2025-09-30",
+      "cost_micros": "120500000",
+      "impressions": "25000",
+      "clicks": "430",
+      "conversions": "12",
+      "conversions_value": "1640000000",
+      "currency_code": "USD"
+    },
+    {
+      "customer_id": "1234567890",
+      "campaign_id": "9876543210",
+      "campaign_name": "BOFU - Sep Campaign",
+      "date": "2025-09-29",
+      "cost_micros": "95300000",
+      "impressions": "20100",
+      "clicks": "380",
+      "conversions": "10",
+      "conversions_value": "1420000000",
+      "currency_code": "USD"
+    }
+  ],
+  "expected_normalized": [
+    {
+      "platform": "google_ads",
+      "account_id": "1234567890",
+      "account_name": "Test Account",
+      "date": "2025-09-30",
+      "campaign_id": "9876543210",
+      "campaign_name": "BOFU - Sep Campaign",
+      "adset_id": null,
+      "adset_name": null,
+      "ad_id": null,
+      "ad_name": null,
+      "spend": 120.50,
+      "impressions": 25000,
+      "clicks": 430,
+      "conversions": 12,
+      "conversion_value": 1640.00,
+      "currency": "USD",
+      "ctr": 0.0172,
+      "cpc": 0.28,
+      "cpm": 4.82,
+      "cpa": 10.04,
+      "roas": 13.61,
+      "attribution_model": null,
+      "attribution_window": null
+    },
+    {
+      "platform": "google_ads",
+      "account_id": "1234567890",
+      "account_name": "Test Account",
+      "date": "2025-09-29",
+      "campaign_id": "9876543210",
+      "campaign_name": "BOFU - Sep Campaign",
+      "adset_id": null,
+      "adset_name": null,
+      "ad_id": null,
+      "ad_name": null,
+      "spend": 95.30,
+      "impressions": 20100,
+      "clicks": 380,
+      "conversions": 10,
+      "conversion_value": 1420.00,
+      "currency": "USD",
+      "ctr": 0.0189,
+      "cpc": 0.2508,
+      "cpm": 4.74,
+      "cpa": 9.53,
+      "roas": 14.90,
+      "attribution_model": null,
+      "attribution_window": null
+    }
+  ],
+  "notes": "Sanitized test data. Real API responses may include additional fields."
+}
