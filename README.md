@@ -49,18 +49,33 @@ GOOGLE_LOGIN_CUSTOMER_ID=1234567890
 
 ## Usage
 
-### Development
+### Local (Stdio)
+
+For Claude Desktop and local clients:
 
 ```bash
+# Development
 npm run dev
-```
 
-### Production
-
-```bash
+# Production
 npm run build
 npm start
 ```
+
+### Cloud Deployment (HTTP/SSE)
+
+For Render, Railway, or other cloud platforms:
+
+```bash
+# Development
+npm run dev:server
+
+# Production
+npm run build
+npm run start:server
+```
+
+**See [DEPLOY.md](./DEPLOY.md) for detailed deployment instructions.**
 
 ### Running Tests
 
