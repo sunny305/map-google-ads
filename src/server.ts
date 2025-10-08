@@ -460,19 +460,51 @@ app.get('/mcp/sse', async (_req: Request, res: Response) => {
 
 // MCP SSE endpoint - POST for messages
 app.post('/mcp/sse', async (req: Request, res: Response) => {
-  logger.info('SSE message received (POST)');
+  logger.info('SSE message received (POST)', { query: req.query });
 
-  const sessionId = req.query.sessionId as string;
+  let sessionId = req.query.sessionId as string;
 
+  // If no sessionId, create a new session
   if (!sessionId) {
-    res.status(400).json({ error: 'Missing sessionId query parameter' });
+    logger.info('No sessionId provided, creating new session');
+
+    // Create a new MCP server instance for this connection
+    const server = createMCPServer();
+
+    // Create a dummy response object for SSE transport
+    // Since we're handling POST directly, we need to work around the SSE transport
+    const transport = new SSEServerTransport('/mcp/sse', res);
+    sessionId = transport.sessionId;
+    transports.set(sessionId, transport);
+
+    // Clean up on close
+    transport.onclose = () => {
+      logger.info('SSE connection closed', { sessionId });
+      transports.delete(sessionId);
+    };
+
+    // Connect server to transport
+    await server.connect(transport);
+    logger.info('New SSE session created', { sessionId });
+
+    // Handle the POST message with the new transport
+    try {
+      await transport.handlePostMessage(req, res);
+    } catch (error: any) {
+      logger.error('Error handling POST message', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
     return;
   }
 
+  // Existing session
   const transport = transports.get(sessionId);
 
   if (!transport) {
-    res.status(404).json({ error: 'Session not found. Please establish connection via GET first.' });
+    logger.error('Session not found', { sessionId });
+    res.status(404).json({ error: 'Session not found. Session may have expired.' });
     return;
   }
 
