@@ -65,9 +65,9 @@ npm run build
 npm start
 ```
 
-### Cloud Deployment (HTTP/SSE)
+### Cloud Deployment (JSON-RPC/HTTP)
 
-For Render, Railway, or other cloud platforms:
+For Render, Railway, Smithery, or other cloud platforms:
 
 ```bash
 # Development
@@ -77,6 +77,11 @@ npm run dev:server
 npm run build
 npm run start:server
 ```
+
+The server exposes a simple JSON-RPC endpoint at `/mcp` (POST) that works with:
+- **Smithery Playground** - MCP testing tool
+- **Claude Desktop** - with HTTP transport
+- **Any HTTP client** - curl, Postman, etc.
 
 **See [DEPLOY.md](./DEPLOY.md) for detailed deployment instructions.**
 

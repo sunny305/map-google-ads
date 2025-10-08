@@ -1,4 +1,6 @@
-# Deployment Guide
+# Deployment Guide - JSON-RPC Transport
+
+This MCP server uses **JSON-RPC over HTTP** for simple, stateless communication. Works with Smithery, Claude Desktop, and any HTTP client.
 
 ## Deploy to Render
 
@@ -70,9 +72,9 @@ services:
 
 Once deployed, your MCP server will be available at:
 
-- **Health Check**: `https://your-app.onrender.com/health`
-- **SSE Endpoint**: `https://your-app.onrender.com/mcp/sse`
-- **Message Endpoint**: `https://your-app.onrender.com/mcp/message`
+- **Health Check**: `https://your-app.onrender.com/health` (GET)
+- **MCP JSON-RPC**: `https://your-app.onrender.com/mcp` (POST)
+- **API Info**: `https://your-app.onrender.com/` (GET)
 
 ## Testing the Deployment
 
@@ -89,19 +91,36 @@ Expected response:
 }
 ```
 
-### Connect via MCP Client
+### Connect via MCP Clients
 
-Configure your MCP client to connect to the SSE endpoint:
+**Smithery Playground:**
+```
+https://your-app.onrender.com/mcp
+```
 
+**Claude Desktop (if HTTP transport supported):**
 ```json
 {
   "mcpServers": {
     "google-ads": {
-      "url": "https://your-app.onrender.com/mcp/sse",
-      "transport": "sse"
+      "url": "https://your-app.onrender.com/mcp",
+      "transport": "http"
     }
   }
 }
+```
+
+**Test with curl:**
+```bash
+# Initialize
+curl -X POST https://your-app.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+
+# List tools
+curl -X POST https://your-app.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
 ## Local Testing
@@ -118,8 +137,8 @@ npm run start:server
 ```
 
 The server will be available at:
-- http://localhost:3000/health
-- http://localhost:3000/mcp/sse
+- http://localhost:3000/health (GET)
+- http://localhost:3000/mcp (POST - JSON-RPC)
 
 ## Environment Variables
 
@@ -135,24 +154,32 @@ The server will be available at:
 
 ## Architecture
 
-### Stdio vs HTTP/SSE
+### Stdio vs JSON-RPC/HTTP
 
 This project supports two deployment modes:
 
-1. **Stdio (Local)**: `npm start` - For Claude Desktop and local clients
-2. **HTTP/SSE (Cloud)**: `npm run start:server` - For cloud deployment
+1. **Stdio (Local)**: `npm start` - For Claude Desktop with local process
+2. **JSON-RPC/HTTP (Cloud)**: `npm run start:server` - For cloud deployment (Render, Smithery, etc.)
 
-### How SSE Works
+### How JSON-RPC Works
+
+Simple request/response over HTTP POST:
 
 ```
 Client                    Server
   |                         |
-  |--- GET /mcp/sse ------>|  (Establish SSE stream)
-  |<--- SSE events ---------|
+  |--- POST /mcp --------->|  (JSON-RPC request)
+  |    {"method":"tools/list"}
   |                         |
-  |--- POST /mcp/message -->|  (Send tool calls)
-  |<--- Response ----------|
+  |<--- Response ----------|  (JSON-RPC response)
+       {"result":{"tools":[...]}}
 ```
+
+**Benefits:**
+- ✅ Stateless - no session management
+- ✅ Works everywhere - Smithery, curl, any HTTP client
+- ✅ Simple - just POST JSON, get JSON back
+- ✅ Scales better - no persistent connections
 
 ## Troubleshooting
 

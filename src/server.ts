@@ -1,19 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Google Ads MCP HTTP/SSE Server
+ * Google Ads MCP JSON-RPC Server
  * For cloud deployment (Render, Railway, etc.)
  */
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  Tool
-} from '@modelcontextprotocol/sdk/types.js';
 
 import { getAccounts, GetAccountsRequest } from './tools/get-accounts.js';
 import { getCampaigns } from './tools/get-campaigns.js';
@@ -42,7 +35,7 @@ if (process.env.NODE_ENV !== 'production') {
 /**
  * Tool definitions matching mcp-manifest.json
  */
-const TOOLS: Tool[] = [
+const TOOLS = [
   {
     name: 'get_accounts',
     description: 'List all accessible Google Ads customer accounts',
@@ -233,214 +226,39 @@ const TOOLS: Tool[] = [
 ];
 
 /**
- * Create a new MCP server instance with handlers
- */
-function createMCPServer(): Server {
-  const logger = createLogger({ service: 'mcp-google-ads-http' });
-
-  const server = new Server(
-    {
-      name: 'mcp-google-ads',
-      version: '1.0.0'
-    },
-    {
-      capabilities: {
-        tools: {}
-      }
-    }
-  );
-
-  logger.info('Google Ads MCP HTTP Server initialized successfully');
-
-  // List tools handler
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: TOOLS
-  }));
-
-  // Call tool handler
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const requestId = generateRequestId();
-    const logger = createLogger({ service: 'mcp-google-ads-http' }).withRequestId(requestId).withTool(request.params.name);
-    const startTime = Date.now();
-
-    logger.info(`Tool call started`, { args: request.params.arguments });
-
-    try {
-      const toolName = request.params.name;
-      const args = request.params.arguments || {};
-
-      switch (toolName) {
-        case 'get_accounts': {
-          const result = await getAccounts(args as unknown as GetAccountsRequest);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        case 'get_campaigns': {
-          const validated = GetCampaignsRequest.parse(args);
-          const result = await getCampaigns(validated);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        case 'get_ads': {
-          const validated = GetAdsRequest.parse(args);
-          const result = await getAds(validated);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        case 'get_report': {
-          const validated = GetReportRequest.parse(args);
-          const result = await getReport(validated);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        case 'get_rate_limit_status': {
-          const result = await getRateLimitStatus(args as unknown as GetRateLimitStatusRequest);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        case 'healthcheck': {
-          const result = await healthcheck(args as unknown as HealthcheckRequest);
-          logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2)
-              }
-            ]
-          };
-        }
-
-        default:
-          logger.error(`Unknown tool: ${toolName}`);
-          throw new Error(`Unknown tool: ${toolName}`);
-      }
-    } catch (error: any) {
-      const originalError = error.originalError || error;
-
-      logger.error('Tool call failed', originalError, {
-        duration_ms: Date.now() - startTime,
-        hasOriginalError: !!error.originalError,
-        errorType: error.name,
-        errorCode: error.code || originalError.code
-      });
-
-      if (error.name === 'ZodError') {
-        const errResponse = createErrorResponse(
-          'VALIDATION',
-          `Validation error: ${error.message}`,
-          'VALIDATION_ERROR'
-        );
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(errResponse, null, 2)
-            }
-          ],
-          isError: true
-        };
-      }
-
-      let errorResponse;
-
-      if (error.errorResponse) {
-        errorResponse = {
-          ...error.errorResponse,
-          error: {
-            ...error.errorResponse.error,
-            original_message: originalError.message !== error.message ? originalError.message : undefined,
-            details: originalError.details || undefined,
-            metadata: originalError.metadata || undefined
-          }
-        };
-      } else {
-        errorResponse = createErrorResponse(
-          'UNKNOWN',
-          originalError.message || error.message || 'Unknown error occurred',
-          originalError.code || error.code
-        );
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(errorResponse, null, 2)
-          }
-        ],
-        isError: true
-      };
-    }
-  });
-
-  return server;
-}
-
-/**
  * Main HTTP server
  */
 const app = express();
 const PORT = process.env.PORT || 3000;
-const logger = createLogger({ service: 'mcp-google-ads-http' });
+const logger = createLogger({ service: 'mcp-google-ads-jsonrpc' });
 
 app.use(cors());
 app.use(express.json());
-
-// Store active SSE transports by session ID
-const transports = new Map<string, SSEServerTransport>();
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Simple HTTP JSON-RPC endpoint for Smithery and other tools
+// Root endpoint - API info
+app.get('/', (_req: Request, res: Response) => {
+  res.json({
+    name: 'mcp-google-ads',
+    version: '1.0.0',
+    description: 'Google Ads MCP Server with JSON-RPC transport',
+    endpoints: {
+      health: '/health',
+      mcp: '/mcp (POST - JSON-RPC)'
+    },
+    documentation: 'https://github.com/your-repo/mcp-google-ads'
+  });
+});
+
+// JSON-RPC endpoint for MCP
 app.post('/mcp', async (req: Request, res: Response) => {
   logger.info('MCP JSON-RPC request received', { method: req.body?.method });
 
   try {
-    // Handle JSON-RPC request directly
     const request = req.body;
 
     if (!request || !request.method) {
@@ -455,7 +273,6 @@ app.post('/mcp', async (req: Request, res: Response) => {
     // Handle notifications (no response needed)
     if (request.method?.startsWith('notifications/')) {
       logger.info('Notification received', { method: request.method });
-      // Notifications don't need a response
       res.status(200).end();
       return;
     }
@@ -488,10 +305,12 @@ app.post('/mcp', async (req: Request, res: Response) => {
       const { name, arguments: args } = request.params;
 
       const requestId = generateRequestId();
-      const logger = createLogger({ service: 'mcp-google-ads-http' }).withRequestId(requestId).withTool(name);
+      const toolLogger = createLogger({ service: 'mcp-google-ads-jsonrpc' })
+        .withRequestId(requestId)
+        .withTool(name);
       const startTime = Date.now();
 
-      logger.info(`Tool call started`, { args });
+      toolLogger.info(`Tool call started`, { args });
 
       try {
         let result;
@@ -579,11 +398,11 @@ app.post('/mcp', async (req: Request, res: Response) => {
           }
 
           default:
-            logger.error(`Unknown tool: ${name}`);
+            toolLogger.error(`Unknown tool: ${name}`);
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
+        toolLogger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
 
         res.json({
           jsonrpc: '2.0',
@@ -593,7 +412,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
       } catch (error: any) {
         const originalError = error.originalError || error;
 
-        logger.error('Tool call failed', originalError, {
+        toolLogger.error('Tool call failed', originalError, {
           duration_ms: Date.now() - startTime,
           hasOriginalError: !!error.originalError,
           errorType: error.name,
@@ -681,116 +500,10 @@ app.post('/mcp', async (req: Request, res: Response) => {
   }
 });
 
-// MCP SSE endpoint - GET to establish connection
-app.get('/mcp/sse', async (_req: Request, res: Response) => {
-  logger.info('New SSE connection request (GET)');
-
-  // Create a new MCP server instance for this connection
-  const server = createMCPServer();
-
-  // Create SSE transport
-  const transport = new SSEServerTransport('/mcp/sse', res);
-  transports.set(transport.sessionId, transport);
-
-  // Clean up on close
-  transport.onclose = () => {
-    logger.info('SSE connection closed', { sessionId: transport.sessionId });
-    transports.delete(transport.sessionId);
-  };
-
-  // Connect server to transport
-  await server.connect(transport);
-
-  logger.info('SSE connection established', { sessionId: transport.sessionId });
-});
-
-// MCP SSE endpoint - POST for messages
-app.post('/mcp/sse', async (req: Request, res: Response) => {
-  logger.info('SSE message received (POST)', { query: req.query });
-
-  let sessionId = req.query.sessionId as string;
-
-  // If no sessionId, create a new session
-  if (!sessionId) {
-    logger.info('No sessionId provided, creating new session');
-
-    // Create a new MCP server instance for this connection
-    const server = createMCPServer();
-
-    // Create a dummy response object for SSE transport
-    // Since we're handling POST directly, we need to work around the SSE transport
-    const transport = new SSEServerTransport('/mcp/sse', res);
-    sessionId = transport.sessionId;
-    transports.set(sessionId, transport);
-
-    // Clean up on close
-    transport.onclose = () => {
-      logger.info('SSE connection closed', { sessionId });
-      transports.delete(sessionId);
-    };
-
-    // Connect server to transport
-    await server.connect(transport);
-    logger.info('New SSE session created', { sessionId });
-
-    // Handle the POST message with the new transport
-    try {
-      await transport.handlePostMessage(req, res);
-    } catch (error: any) {
-      logger.error('Error handling POST message', error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    }
-    return;
-  }
-
-  // Existing session
-  const transport = transports.get(sessionId);
-
-  if (!transport) {
-    logger.error('Session not found', { sessionId });
-    res.status(404).json({ error: 'Session not found. Session may have expired.' });
-    return;
-  }
-
-  try {
-    await transport.handlePostMessage(req, res);
-  } catch (error: any) {
-    logger.error('Error handling POST message', error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-});
-
-// MCP message endpoint (POST)
-app.post('/mcp/message', async (req: Request, res: Response) => {
-  const sessionId = req.query.sessionId as string;
-
-  if (!sessionId) {
-    res.status(400).json({ error: 'Missing sessionId' });
-    return;
-  }
-
-  const transport = transports.get(sessionId);
-
-  if (!transport) {
-    res.status(404).json({ error: 'Session not found' });
-    return;
-  }
-
-  try {
-    await transport.handlePostMessage(req, res);
-  } catch (error: any) {
-    logger.error('Error handling POST message', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Start server
 app.listen(PORT, () => {
-  logger.info(`Google Ads MCP HTTP Server running on port ${PORT}`);
-  logger.info(`SSE endpoint: http://localhost:${PORT}/mcp/sse`);
-  logger.info(`Message endpoint: http://localhost:${PORT}/mcp/message`);
+  logger.info(`Google Ads MCP JSON-RPC Server running on port ${PORT}`);
+  logger.info(`Endpoints:`);
+  logger.info(`  - Health: http://localhost:${PORT}/health`);
+  logger.info(`  - MCP: http://localhost:${PORT}/mcp (POST)`);
 });
