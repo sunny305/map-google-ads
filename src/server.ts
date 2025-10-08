@@ -528,7 +528,7 @@ app.post('/mcp', async (req: Request, res: Response) => {
         });
       }
     } else {
-      logger.error('Unknown method received', { method: request.method, params: request.params });
+      logger.info('Unknown method received', { method: request.method, params: request.params });
       res.status(501).json({
         jsonrpc: '2.0',
         error: {
