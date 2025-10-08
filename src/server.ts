@@ -435,6 +435,240 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Simple HTTP JSON-RPC endpoint for Smithery and other tools
+app.post('/mcp', async (req: Request, res: Response) => {
+  logger.info('MCP JSON-RPC request received', { method: req.body?.method });
+
+  try {
+    // Handle JSON-RPC request directly
+    const request = req.body;
+
+    if (!request || !request.method) {
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: { code: -32600, message: 'Invalid Request' },
+        id: request?.id || null
+      });
+      return;
+    }
+
+    // Route to appropriate handler
+    if (request.method === 'initialize') {
+      res.json({
+        jsonrpc: '2.0',
+        result: {
+          protocolVersion: '2024-11-05',
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: 'mcp-google-ads',
+            version: '1.0.0'
+          }
+        },
+        id: request.id
+      });
+    } else if (request.method === 'tools/list') {
+      res.json({
+        jsonrpc: '2.0',
+        result: {
+          tools: TOOLS
+        },
+        id: request.id
+      });
+    } else if (request.method === 'tools/call') {
+      const { name, arguments: args } = request.params;
+
+      const requestId = generateRequestId();
+      const logger = createLogger({ service: 'mcp-google-ads-http' }).withRequestId(requestId).withTool(name);
+      const startTime = Date.now();
+
+      logger.info(`Tool call started`, { args });
+
+      try {
+        let result;
+
+        switch (name) {
+          case 'get_accounts': {
+            const toolResult = await getAccounts(args as unknown as GetAccountsRequest);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          case 'get_campaigns': {
+            const validated = GetCampaignsRequest.parse(args);
+            const toolResult = await getCampaigns(validated);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          case 'get_ads': {
+            const validated = GetAdsRequest.parse(args);
+            const toolResult = await getAds(validated);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          case 'get_report': {
+            const validated = GetReportRequest.parse(args);
+            const toolResult = await getReport(validated);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          case 'get_rate_limit_status': {
+            const toolResult = await getRateLimitStatus(args as unknown as GetRateLimitStatusRequest);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          case 'healthcheck': {
+            const toolResult = await healthcheck(args as unknown as HealthcheckRequest);
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(toolResult, null, 2)
+                }
+              ]
+            };
+            break;
+          }
+
+          default:
+            logger.error(`Unknown tool: ${name}`);
+            throw new Error(`Unknown tool: ${name}`);
+        }
+
+        logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
+
+        res.json({
+          jsonrpc: '2.0',
+          result: result,
+          id: request.id
+        });
+      } catch (error: any) {
+        const originalError = error.originalError || error;
+
+        logger.error('Tool call failed', originalError, {
+          duration_ms: Date.now() - startTime,
+          hasOriginalError: !!error.originalError,
+          errorType: error.name,
+          errorCode: error.code || originalError.code
+        });
+
+        if (error.name === 'ZodError') {
+          const errResponse = createErrorResponse(
+            'VALIDATION',
+            `Validation error: ${error.message}`,
+            'VALIDATION_ERROR'
+          );
+          res.json({
+            jsonrpc: '2.0',
+            result: {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify(errResponse, null, 2)
+                }
+              ],
+              isError: true
+            },
+            id: request.id
+          });
+          return;
+        }
+
+        let errorResponse;
+
+        if (error.errorResponse) {
+          errorResponse = {
+            ...error.errorResponse,
+            error: {
+              ...error.errorResponse.error,
+              original_message: originalError.message !== error.message ? originalError.message : undefined,
+              details: originalError.details || undefined,
+              metadata: originalError.metadata || undefined
+            }
+          };
+        } else {
+          errorResponse = createErrorResponse(
+            'UNKNOWN',
+            originalError.message || error.message || 'Unknown error occurred',
+            originalError.code || error.code
+          );
+        }
+
+        res.json({
+          jsonrpc: '2.0',
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(errorResponse, null, 2)
+              }
+            ],
+            isError: true
+          },
+          id: request.id
+        });
+      }
+    } else {
+      res.status(501).json({
+        jsonrpc: '2.0',
+        error: { code: -32601, message: 'Method not found' },
+        id: request.id
+      });
+    }
+  } catch (error: any) {
+    logger.error('Error handling JSON-RPC request', error);
+    res.status(500).json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32603,
+        message: 'Internal error',
+        data: error.message
+      },
+      id: req.body?.id || null
+    });
+  }
+});
+
 // MCP SSE endpoint - GET to establish connection
 app.get('/mcp/sse', async (_req: Request, res: Response) => {
   logger.info('New SSE connection request (GET)');
