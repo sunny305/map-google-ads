@@ -13,7 +13,6 @@ import {
   Tool
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { createGoogleAdsClient, type GoogleAdsClient } from './api/google-ads-client.js';
 import { getAccounts } from './tools/get-accounts.js';
 import { getCampaigns } from './tools/get-campaigns.js';
 import { getAds } from './tools/get-ads.js';
@@ -47,7 +46,23 @@ const TOOLS: Tool[] = [
     description: 'List all accessible Google Ads customer accounts',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional, for MCC accounts)'
+            }
+          },
+          required: ['refresh_token']
+        }
+      },
+      required: ['user_credentials'],
       additionalProperties: false
     }
   },
@@ -80,9 +95,23 @@ const TOOLS: Tool[] = [
         timezone: {
           type: 'string',
           default: 'Asia/Kolkata'
+        },
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional)'
+            }
+          },
+          required: ['refresh_token']
         }
       },
-      required: ['date_range']
+      required: ['date_range', 'user_credentials']
     }
   },
   {
@@ -95,9 +124,23 @@ const TOOLS: Tool[] = [
         date_range: { type: 'object' },
         campaign_ids: { type: 'array', items: { type: 'string' } },
         ad_ids: { type: 'array', items: { type: 'string' } },
-        timezone: { type: 'string', default: 'Asia/Kolkata' }
+        timezone: { type: 'string', default: 'Asia/Kolkata' },
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional)'
+            }
+          },
+          required: ['refresh_token']
+        }
       },
-      required: ['date_range']
+      required: ['date_range', 'user_credentials']
     }
   },
   {
@@ -116,9 +159,23 @@ const TOOLS: Tool[] = [
         filters: { type: 'array' },
         breakdowns: { type: 'array', items: { type: 'string' } },
         timezone: { type: 'string', default: 'Asia/Kolkata' },
-        paging: { type: 'object' }
+        paging: { type: 'object' },
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional)'
+            }
+          },
+          required: ['refresh_token']
+        }
       },
-      required: ['date_range', 'level']
+      required: ['date_range', 'level', 'user_credentials']
     }
   },
   {
@@ -126,7 +183,23 @@ const TOOLS: Tool[] = [
     description: 'Get current rate limit status and quotas',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional)'
+            }
+          },
+          required: ['refresh_token']
+        }
+      },
+      required: ['user_credentials'],
       additionalProperties: false
     }
   },
@@ -135,7 +208,23 @@ const TOOLS: Tool[] = [
     description: 'Check API connectivity and return server version',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        user_credentials: {
+          type: 'object',
+          properties: {
+            refresh_token: {
+              type: 'string',
+              description: 'User OAuth refresh token (REQUIRED)'
+            },
+            login_customer_id: {
+              type: 'string',
+              description: 'Manager account ID (optional)'
+            }
+          },
+          required: ['refresh_token']
+        }
+      },
+      required: ['user_credentials'],
       additionalProperties: false
     }
   }
@@ -146,7 +235,6 @@ const TOOLS: Tool[] = [
  */
 class GoogleAdsMCPServer {
   private server: Server;
-  private client: GoogleAdsClient;
 
   constructor() {
     const logger = createLogger({ service: 'mcp-google-ads' });
@@ -163,15 +251,7 @@ class GoogleAdsMCPServer {
       }
     );
 
-    // Initialize Google Ads client
-    try {
-      this.client = createGoogleAdsClient();
-      logger.info('Google Ads MCP Server initialized successfully');
-    } catch (error: any) {
-      logger.error('Failed to initialize Google Ads client', error);
-      process.exit(1);
-    }
-
+    logger.info('Google Ads MCP Server initialized successfully');
     this.setupHandlers();
   }
 
@@ -203,7 +283,7 @@ class GoogleAdsMCPServer {
     try {
       switch (toolName) {
         case 'get_accounts': {
-          const result = await getAccounts(this.client);
+          const result = await getAccounts(args);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [
@@ -217,7 +297,7 @@ class GoogleAdsMCPServer {
 
         case 'get_campaigns': {
           const validated = GetCampaignsRequest.parse(args);
-          const result = await getCampaigns(this.client, validated);
+          const result = await getCampaigns(validated);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [
@@ -231,7 +311,7 @@ class GoogleAdsMCPServer {
 
         case 'get_ads': {
           const validated = GetAdsRequest.parse(args);
-          const result = await getAds(this.client, validated);
+          const result = await getAds(validated);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [
@@ -245,7 +325,7 @@ class GoogleAdsMCPServer {
 
         case 'get_report': {
           const validated = GetReportRequest.parse(args);
-          const result = await getReport(this.client, validated);
+          const result = await getReport(validated);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [
@@ -258,7 +338,7 @@ class GoogleAdsMCPServer {
         }
 
         case 'get_rate_limit_status': {
-          const result = await getRateLimitStatus(this.client);
+          const result = await getRateLimitStatus(args);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [
@@ -271,7 +351,7 @@ class GoogleAdsMCPServer {
         }
 
         case 'healthcheck': {
-          const result = await healthcheck(this.client);
+          const result = await healthcheck(args);
           logger.info(`Tool call completed`, { duration_ms: Date.now() - startTime });
           return {
             content: [

@@ -3,7 +3,12 @@
  * Get current rate limit status and quotas
  */
 
-import type { GoogleAdsClient } from '../api/google-ads-client.js';
+import { createGoogleAdsClientFromRequest } from '../api/google-ads-client.js';
+import type { UserCredentials } from '../validation/schemas.js';
+
+export interface GetRateLimitStatusRequest {
+  user_credentials: UserCredentials;
+}
 
 export interface RateLimitStatus {
   quota_remaining: number | null;
@@ -20,7 +25,8 @@ export interface RateLimitStatus {
  * Get rate limit status
  * Note: Google Ads API doesn't always expose rate limit info in headers
  */
-export async function getRateLimitStatus(client: GoogleAdsClient): Promise<RateLimitStatus> {
+export async function getRateLimitStatus(request: GetRateLimitStatusRequest): Promise<RateLimitStatus> {
+  const client = createGoogleAdsClientFromRequest(request.user_credentials);
   const rateLimitInfo = client.getRateLimitStatus();
 
   return {

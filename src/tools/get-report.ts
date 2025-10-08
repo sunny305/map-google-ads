@@ -3,7 +3,7 @@
  * Get normalized performance report with metrics at specified level
  */
 
-import type { GoogleAdsClient } from '../api/google-ads-client.js';
+import { createGoogleAdsClientFromRequest } from '../api/google-ads-client.js';
 import { GetReportRequest, resolveDateRange } from '../validation/schemas.js';
 import { normalizePaginationParams, createPaginatedResponse, type PaginatedResponse } from '../utils/pagination.js';
 import { buildGAQLFields, buildGAQLResource, mapRowsToStandardized, type StandardizedRow } from '../normalization/field-mapper.js';
@@ -12,9 +12,9 @@ import { buildGAQLFields, buildGAQLResource, mapRowsToStandardized, type Standar
  * Get report with normalized metrics
  */
 export async function getReport(
-  client: GoogleAdsClient,
   request: GetReportRequest
 ): Promise<PaginatedResponse<StandardizedRow>> {
+  const client = createGoogleAdsClientFromRequest(request.user_credentials);
   const { start_date, end_date } = resolveDateRange(request.date_range);
   const pagination = normalizePaginationParams(request.paging);
 

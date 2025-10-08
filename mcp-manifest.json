@@ -9,7 +9,24 @@
       "description": "List all accessible Google Ads customer accounts",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional, for MCC accounts)"
+              }
+            },
+            "required": ["refresh_token"]
+          }
+        },
+        "required": ["user_credentials"],
         "additionalProperties": false
       }
     },
@@ -54,9 +71,24 @@
             "type": "string",
             "description": "Timezone for date range (default: Asia/Kolkata)",
             "default": "Asia/Kolkata"
+          },
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional)"
+              }
+            },
+            "required": ["refresh_token"]
           }
         },
-        "required": ["date_range"]
+        "required": ["date_range", "user_credentials"]
       }
     },
     {
@@ -94,9 +126,24 @@
           "timezone": {
             "type": "string",
             "default": "Asia/Kolkata"
+          },
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional)"
+              }
+            },
+            "required": ["refresh_token"]
           }
         },
-        "required": ["date_range"]
+        "required": ["date_range", "user_credentials"]
       }
     },
     {
@@ -162,9 +209,24 @@
               "limit": { "type": "number", "default": 500, "maximum": 10000 },
               "cursor": { "type": "string" }
             }
+          },
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional)"
+              }
+            },
+            "required": ["refresh_token"]
           }
         },
-        "required": ["date_range", "level"]
+        "required": ["date_range", "level", "user_credentials"]
       }
     },
     {
@@ -172,7 +234,24 @@
       "description": "Get current rate limit status and quotas",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional)"
+              }
+            },
+            "required": ["refresh_token"]
+          }
+        },
+        "required": ["user_credentials"],
         "additionalProperties": false
       }
     },
@@ -181,7 +260,24 @@
       "description": "Check API connectivity and return server version",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "user_credentials": {
+            "type": "object",
+            "description": "User-specific OAuth credentials",
+            "properties": {
+              "refresh_token": {
+                "type": "string",
+                "description": "User OAuth refresh token (REQUIRED)"
+              },
+              "login_customer_id": {
+                "type": "string",
+                "description": "Manager account ID (optional)"
+              }
+            },
+            "required": ["refresh_token"]
+          }
+        },
+        "required": ["user_credentials"],
         "additionalProperties": false
       }
     }

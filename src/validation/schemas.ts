@@ -65,11 +65,11 @@ export const PagingSchema = z.object({
  * MUST be in .env and CANNOT be passed as parameters for security.
  *
  * Only user-specific credentials can be passed:
- * - refresh_token: User's OAuth refresh token (changes per user)
+ * - refresh_token: User's OAuth refresh token (REQUIRED per request)
  * - login_customer_id: Manager account ID (optional, for MCC accounts)
  */
 export const UserCredentialsSchema = z.object({
-  refresh_token: z.string().optional(),
+  refresh_token: z.string().min(1, 'refresh_token is required'),
   login_customer_id: z.string().optional()
 }).optional();
 
@@ -237,10 +237,10 @@ function formatDate(date: Date): string {
  * App-level credentials (client_id, client_secret, developer_token)
  * MUST come from environment variables for security.
  *
- * User-level credentials (refresh_token, login_customer_id) can be
- * passed per request or fall back to environment.
+ * User-level credentials (refresh_token, login_customer_id) MUST be
+ * passed per request.
  *
- * @param userCreds - Optional user-specific credentials from request
+ * @param userCreds - User-specific credentials from request (refresh_token required)
  * @returns Complete credentials object for API calls
  */
 export function mergeCredentials(userCreds?: UserCredentials): {
@@ -255,9 +255,9 @@ export function mergeCredentials(userCreds?: UserCredentials): {
   const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET;
   const developerToken = process.env.GOOGLE_DEVELOPER_TOKEN;
 
-  // User-level credentials - request parameter OR environment fallback
-  const refreshToken = userCreds?.refresh_token || process.env.GOOGLE_ADS_REFRESH_TOKEN;
-  const loginCustomerId = userCreds?.login_customer_id || process.env.GOOGLE_LOGIN_CUSTOMER_ID;
+  // User-level credentials - MUST be provided in request
+  const refreshToken = userCreds?.refresh_token;
+  const loginCustomerId = userCreds?.login_customer_id;
 
   // Validate app-level credentials are in environment
   if (!clientId || !clientSecret || !developerToken) {
@@ -272,7 +272,7 @@ export function mergeCredentials(userCreds?: UserCredentials): {
   if (!refreshToken) {
     throw createErrorResponse(
       'AUTH',
-      'Missing refresh_token. Provide via user_credentials parameter or GOOGLE_ADS_REFRESH_TOKEN in .env',
+      'Missing refresh_token. Must be provided via user_credentials parameter',
       'MISSING_REFRESH_TOKEN'
     );
   }

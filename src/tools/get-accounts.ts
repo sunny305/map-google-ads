@@ -3,7 +3,12 @@
  * Lists all accessible Google Ads customer accounts
  */
 
-import type { GoogleAdsClient } from '../api/google-ads-client.js';
+import { createGoogleAdsClientFromRequest } from '../api/google-ads-client.js';
+import type { UserCredentials } from '../validation/schemas.js';
+
+export interface GetAccountsRequest {
+  user_credentials: UserCredentials;
+}
 
 export interface AccountInfo {
   id: string;
@@ -22,7 +27,8 @@ export interface GetAccountsResponse {
 /**
  * Get all accessible Google Ads accounts
  */
-export async function getAccounts(client: GoogleAdsClient): Promise<GetAccountsResponse> {
+export async function getAccounts(request: GetAccountsRequest): Promise<GetAccountsResponse> {
+  const client = createGoogleAdsClientFromRequest(request.user_credentials);
   const accounts = await client.listAccessibleCustomers();
 
   return {

@@ -3,7 +3,7 @@
  * Retrieves ads for specified accounts and date range
  */
 
-import type { GoogleAdsClient } from '../api/google-ads-client.js';
+import { createGoogleAdsClientFromRequest } from '../api/google-ads-client.js';
 import { GetAdsRequest, resolveDateRange } from '../validation/schemas.js';
 
 export interface AdInfo {
@@ -29,9 +29,9 @@ export interface GetAdsResponse {
  * Get ads for specified accounts
  */
 export async function getAds(
-  client: GoogleAdsClient,
   request: GetAdsRequest
 ): Promise<GetAdsResponse> {
+  const client = createGoogleAdsClientFromRequest(request.user_credentials);
   const { start_date, end_date } = resolveDateRange(request.date_range);
 
   // If no account_ids provided, get all accessible accounts

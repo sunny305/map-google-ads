@@ -3,7 +3,12 @@
  * Check API connectivity and return server version
  */
 
-import type { GoogleAdsClient } from '../api/google-ads-client.js';
+import { createGoogleAdsClientFromRequest } from '../api/google-ads-client.js';
+import type { UserCredentials } from '../validation/schemas.js';
+
+export interface HealthcheckRequest {
+  user_credentials: UserCredentials;
+}
 
 export interface HealthcheckResponse {
   status: 'ok' | 'error';
@@ -25,8 +30,9 @@ export interface HealthcheckResponse {
 /**
  * Perform health check
  */
-export async function healthcheck(client: GoogleAdsClient): Promise<HealthcheckResponse> {
+export async function healthcheck(request: HealthcheckRequest): Promise<HealthcheckResponse> {
   const timestamp = new Date().toISOString();
+  const client = createGoogleAdsClientFromRequest(request.user_credentials);
 
   const result = await client.healthcheck();
 
