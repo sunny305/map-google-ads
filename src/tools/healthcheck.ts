@@ -23,6 +23,8 @@ export interface HealthcheckResponse {
     type: string;
     code: string | null;
     message: string;
+    originalMessage?: string;
+    details?: any;
     stack?: string;
   };
 }

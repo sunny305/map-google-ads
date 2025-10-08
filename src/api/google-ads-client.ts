@@ -139,6 +139,8 @@ export class GoogleAdsClient {
       type: string;
       code: string | null;
       message: string;
+      originalMessage?: string;
+      details?: any;
       stack?: string;
     };
   }> {
@@ -151,25 +153,31 @@ export class GoogleAdsClient {
         message: `Connected successfully. ${accounts.length} accessible accounts.`
       };
     } catch (error: any) {
+      // Check if there's an original error from normalizeError
+      const originalError = error.originalError || error;
+
       // Log the raw error for debugging
-      console.error('[Google Ads API Error]', {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        stack: error.stack
+      console.error('[Google Ads API Healthcheck Error]', {
+        name: originalError.name,
+        message: originalError.message,
+        code: originalError.code,
+        details: originalError.details,
+        metadata: originalError.metadata,
+        stack: originalError.stack
       });
 
       // Return detailed error information for debugging
       return {
         status: 'error',
         version: '1.0.0',
-        message: error.message || 'Authentication failed',
+        message: error.message || originalError.message || 'Authentication failed',
         error_details: {
           type: error.errorResponse?.error?.type || error.name || 'UNKNOWN',
-          code: error.code || error.errorResponse?.error?.upstream_code || null,
-          message: error.message || 'Unknown error occurred',
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+          code: originalError.code || error.code || error.errorResponse?.error?.upstream_code || null,
+          message: error.message || originalError.message || 'Unknown error occurred',
+          originalMessage: originalError.message !== error.message ? originalError.message : undefined,
+          details: originalError.details,
+          stack: process.env.NODE_ENV === 'development' ? originalError.stack : undefined
         }
       };
     }
@@ -198,16 +206,27 @@ export class GoogleAdsClient {
    * Normalize Google Ads API errors to standard format
    */
   private normalizeError(error: any): Error {
+    // Log the full error for debugging
+    console.error('[GoogleAdsClient Error]', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      details: error.details,
+      metadata: error.metadata,
+      stack: error.stack?.split('\n').slice(0, 3)
+    });
+
     // Authentication errors
     if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
       const errResponse = createErrorResponse(
         'AUTH',
-        'Authentication failed. Check your credentials.',
+        `Authentication failed: ${error.message}`,
         error.code
       );
       return Object.assign(new Error(errResponse.error.message), {
         statusCode: 401,
-        errorResponse: errResponse
+        errorResponse: errResponse,
+        originalError: error
       });
     }
 
@@ -218,14 +237,15 @@ export class GoogleAdsClient {
     ) {
       const errResponse = createErrorResponse(
         'RATE_LIMIT',
-        'Rate limit exceeded. Please retry after some time.',
+        `Rate limit exceeded: ${error.message}`,
         error.code,
         60 // Suggest 60 second retry
       );
       return Object.assign(new Error(errResponse.error.message), {
         statusCode: 429,
         retryAfterSeconds: 60,
-        errorResponse: errResponse
+        errorResponse: errResponse,
+        originalError: error
       });
     }
 
@@ -233,12 +253,13 @@ export class GoogleAdsClient {
     if (error.message?.includes('NOT_FOUND') || error.message?.includes('does not exist')) {
       const errResponse = createErrorResponse(
         'NOT_FOUND',
-        'Requested resource not found.',
+        `Resource not found: ${error.message}`,
         error.code
       );
       return Object.assign(new Error(errResponse.error.message), {
         statusCode: 404,
-        errorResponse: errResponse
+        errorResponse: errResponse,
+        originalError: error
       });
     }
 
@@ -247,19 +268,26 @@ export class GoogleAdsClient {
       const errResponse = createErrorResponse('VALIDATION', error.message, error.code);
       return Object.assign(new Error(errResponse.error.message), {
         statusCode: 400,
-        errorResponse: errResponse
+        errorResponse: errResponse,
+        originalError: error
       });
     }
 
-    // Generic upstream error
+    // Generic upstream error - preserve all error details
+    const errorMessage = error.message || error.details || 'Unknown error from Google Ads API';
+    const fullMessage = error.details
+      ? `${errorMessage} | Details: ${JSON.stringify(error.details)}`
+      : errorMessage;
+
     const errResponse = createErrorResponse(
       'UPSTREAM',
-      error.message || 'Unknown error from Google Ads API',
-      error.code
+      fullMessage,
+      error.code || error.status_code
     );
     return Object.assign(new Error(errResponse.error.message), {
-      statusCode: 500,
-      errorResponse: errResponse
+      statusCode: error.statusCode || 500,
+      errorResponse: errResponse,
+      originalError: error
     });
   }
 }

@@ -368,7 +368,15 @@ class GoogleAdsMCPServer {
           throw new Error(`Unknown tool: ${toolName}`);
       }
     } catch (error: any) {
-      logger.error('Tool call failed', error, { duration_ms: Date.now() - startTime });
+      // Extract original error if available (from normalizeError)
+      const originalError = error.originalError || error;
+
+      logger.error('Tool call failed', originalError, {
+        duration_ms: Date.now() - startTime,
+        hasOriginalError: !!error.originalError,
+        errorType: error.name,
+        errorCode: error.code || originalError.code
+      });
 
       // Handle validation errors
       if (error.name === 'ZodError') {
@@ -388,12 +396,29 @@ class GoogleAdsMCPServer {
         };
       }
 
-      // Handle other errors
-      const errorResponse = (error as any).errorResponse || createErrorResponse(
-        'UNKNOWN',
-        error.message,
-        error.code
-      );
+      // Build detailed error response with original error information
+      let errorResponse;
+
+      if (error.errorResponse) {
+        // Error was normalized - include original details
+        errorResponse = {
+          ...error.errorResponse,
+          error: {
+            ...error.errorResponse.error,
+            // Add original error details for debugging
+            original_message: originalError.message !== error.message ? originalError.message : undefined,
+            details: originalError.details || undefined,
+            metadata: originalError.metadata || undefined
+          }
+        };
+      } else {
+        // Un-normalized error - create basic error response
+        errorResponse = createErrorResponse(
+          'UNKNOWN',
+          originalError.message || error.message || 'Unknown error occurred',
+          originalError.code || error.code
+        );
+      }
 
       return {
         content: [
