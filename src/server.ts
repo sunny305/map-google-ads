@@ -649,9 +649,13 @@ app.post('/mcp', async (req: Request, res: Response) => {
         });
       }
     } else {
+      logger.error('Unknown method received', { method: request.method, params: request.params });
       res.status(501).json({
         jsonrpc: '2.0',
-        error: { code: -32601, message: 'Method not found' },
+        error: {
+          code: -32601,
+          message: `Method not found: ${request.method}. Supported: initialize, tools/list, tools/call`
+        },
         id: request.id
       });
     }
