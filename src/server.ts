@@ -452,6 +452,14 @@ app.post('/mcp', async (req: Request, res: Response) => {
       return;
     }
 
+    // Handle notifications (no response needed)
+    if (request.method?.startsWith('notifications/')) {
+      logger.info('Notification received', { method: request.method });
+      // Notifications don't need a response
+      res.status(200).end();
+      return;
+    }
+
     // Route to appropriate handler
     if (request.method === 'initialize') {
       res.json({
