@@ -10,14 +10,13 @@ services:
         value: production
       - key: PORT
         value: 10000
+      # App-level credentials (shared across all users)
       - key: GOOGLE_ADS_CLIENT_ID
         sync: false
       - key: GOOGLE_ADS_CLIENT_SECRET
         sync: false
       - key: GOOGLE_DEVELOPER_TOKEN
         sync: false
-      - key: GOOGLE_ADS_REFRESH_TOKEN
-        sync: false
-      - key: GOOGLE_LOGIN_CUSTOMER_ID
-        sync: false
+      # NOTE: refresh_token and login_customer_id are passed per-request via user_credentials
+      # They should NOT be set as environment variables
     healthCheckPath: /health

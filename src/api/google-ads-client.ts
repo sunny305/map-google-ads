@@ -302,38 +302,19 @@ interface RateLimitInfo {
 }
 
 /**
- * Create Google Ads client from environment variables (legacy method)
- * @deprecated Use createGoogleAdsClientFromRequest for per-request credentials
- */
-export function createGoogleAdsClient(): GoogleAdsClient {
-  const config: GoogleAdsConfig = {
-    client_id: process.env.GOOGLE_ADS_CLIENT_ID || '',
-    client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET || '',
-    refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN || '',
-    developer_token: process.env.GOOGLE_DEVELOPER_TOKEN || '',
-    login_customer_id: process.env.GOOGLE_LOGIN_CUSTOMER_ID
-  };
-
-  // Validate required config
-  if (!config.client_id || !config.client_secret || !config.refresh_token || !config.developer_token) {
-    throw new Error(
-      'Missing required Google Ads configuration. Please check environment variables: ' +
-      'GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN, GOOGLE_DEVELOPER_TOKEN'
-    );
-  }
-
-  return new GoogleAdsClient(config);
-}
-
-/**
  * Create Google Ads client from request credentials
- * Merges user-provided credentials with app-level credentials from environment
  *
- * @param userCreds - User-specific credentials (refresh_token required, login_customer_id optional)
+ * App-level credentials (client_id, client_secret, developer_token) are read from
+ * environment variables for security.
+ *
+ * User-level credentials (refresh_token, login_customer_id) MUST be provided
+ * in every request - no fallback to environment variables.
+ *
+ * @param userCreds - User-specific credentials (REQUIRED - refresh_token must be provided)
  * @returns GoogleAdsClient instance configured with merged credentials
  */
-export function createGoogleAdsClientFromRequest(userCreds?: {
-  refresh_token?: string;
+export function createGoogleAdsClientFromRequest(userCreds: {
+  refresh_token: string;
   login_customer_id?: string;
 }): GoogleAdsClient {
   // App-level credentials - ALWAYS from environment (security)
@@ -341,9 +322,9 @@ export function createGoogleAdsClientFromRequest(userCreds?: {
   const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET;
   const developerToken = process.env.GOOGLE_DEVELOPER_TOKEN;
 
-  // User-level credentials - MUST be provided in request
-  const refreshToken = userCreds?.refresh_token;
-  const loginCustomerId = userCreds?.login_customer_id;
+  // User-level credentials - provided in request (validated by caller)
+  const refreshToken = userCreds.refresh_token;
+  const loginCustomerId = userCreds.login_customer_id;
 
   // Validate app-level credentials are in environment
   if (!clientId || !clientSecret || !developerToken) {
@@ -351,19 +332,6 @@ export function createGoogleAdsClientFromRequest(userCreds?: {
       'AUTH',
       'Missing app-level credentials in environment. Set GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, and GOOGLE_DEVELOPER_TOKEN in .env',
       'MISSING_APP_CREDENTIALS'
-    );
-    throw Object.assign(new Error(errorResponse.error.message), {
-      statusCode: 401,
-      errorResponse
-    });
-  }
-
-  // Validate user-level credentials
-  if (!refreshToken) {
-    const errorResponse = createErrorResponse(
-      'AUTH',
-      'Missing refresh_token. Must be provided via user_credentials parameter',
-      'MISSING_REFRESH_TOKEN'
     );
     throw Object.assign(new Error(errorResponse.error.message), {
       statusCode: 401,

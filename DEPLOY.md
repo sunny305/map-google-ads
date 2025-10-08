@@ -22,12 +22,12 @@
    - Render will auto-detect `render.yaml`
 
 3. **Configure Environment Variables**
-   Add these in the Render dashboard:
+   Add these **app-level** credentials in the Render dashboard:
    - `GOOGLE_ADS_CLIENT_ID`: Your OAuth client ID
    - `GOOGLE_ADS_CLIENT_SECRET`: Your OAuth client secret
    - `GOOGLE_DEVELOPER_TOKEN`: Your developer token
-   - `GOOGLE_ADS_REFRESH_TOKEN`: OAuth refresh token (optional, if using server-level auth)
-   - `GOOGLE_LOGIN_CUSTOMER_ID`: Manager account ID (optional)
+
+   **Note:** `refresh_token` and `login_customer_id` must be passed per-request via `user_credentials` in tool calls, NOT as environment variables.
 
 4. **Deploy**
    - Click "Create Web Service"
@@ -127,13 +127,11 @@ The server will be available at:
 |----------|----------|-------------|
 | `PORT` | No | Server port (default: 3000, Render uses 10000) |
 | `NODE_ENV` | No | Environment (development/production) |
-| `GOOGLE_ADS_CLIENT_ID` | Yes* | OAuth client ID |
-| `GOOGLE_ADS_CLIENT_SECRET` | Yes* | OAuth client secret |
-| `GOOGLE_DEVELOPER_TOKEN` | Yes* | Developer token |
-| `GOOGLE_ADS_REFRESH_TOKEN` | No | Server-level refresh token (optional) |
-| `GOOGLE_LOGIN_CUSTOMER_ID` | No | Manager account ID (optional) |
+| `GOOGLE_ADS_CLIENT_ID` | **Yes** | App-level OAuth client ID (shared across all users) |
+| `GOOGLE_ADS_CLIENT_SECRET` | **Yes** | App-level OAuth client secret (shared across all users) |
+| `GOOGLE_DEVELOPER_TOKEN` | **Yes** | Developer token (shared across all users) |
 
-*Required for server-level authentication. Can be omitted if clients provide credentials per-request.
+**Note:** `refresh_token` and `login_customer_id` are **NOT** environment variables. They must be passed per-request via the `user_credentials` parameter in each tool call. This allows multi-user support where each user provides their own OAuth refresh token.
 
 ## Architecture
 

@@ -55,23 +55,23 @@ export const PagingSchema = z.object({
 });
 
 // ========================================
-// User Credentials Schema (Optional per-request)
+// User Credentials Schema (REQUIRED per-request)
 // ========================================
 
 /**
- * User-specific credentials that can be passed per request
+ * User-specific credentials that MUST be passed in every request
  *
  * App-level credentials (client_id, client_secret, developer_token)
  * MUST be in .env and CANNOT be passed as parameters for security.
  *
- * Only user-specific credentials can be passed:
- * - refresh_token: User's OAuth refresh token (REQUIRED per request)
+ * User-specific credentials REQUIRED per request:
+ * - refresh_token: User's OAuth refresh token (REQUIRED - no fallback)
  * - login_customer_id: Manager account ID (optional, for MCC accounts)
  */
 export const UserCredentialsSchema = z.object({
   refresh_token: z.string().min(1, 'refresh_token is required'),
   login_customer_id: z.string().optional()
-}).optional();
+});
 
 export type UserCredentials = z.infer<typeof UserCredentialsSchema>;
 
@@ -85,7 +85,7 @@ export const GetCampaignsRequest = z.object({
   date_range: DateRangeSchema,
   campaign_ids: z.array(z.string()).optional(),
   timezone: z.string().default('Asia/Kolkata'),
-  user_credentials: UserCredentialsSchema  // Optional user-specific credentials
+  user_credentials: UserCredentialsSchema  // REQUIRED user-specific credentials
 });
 
 export type GetCampaignsRequest = z.infer<typeof GetCampaignsRequest>;
@@ -97,7 +97,7 @@ export const GetAdsRequest = z.object({
   campaign_ids: z.array(z.string()).optional(),
   ad_ids: z.array(z.string()).optional(),
   timezone: z.string().default('Asia/Kolkata'),
-  user_credentials: UserCredentialsSchema  // Optional user-specific credentials
+  user_credentials: UserCredentialsSchema  // REQUIRED user-specific credentials
 });
 
 export type GetAdsRequest = z.infer<typeof GetAdsRequest>;
@@ -112,7 +112,7 @@ export const GetReportRequest = z.object({
   breakdowns: z.array(z.string()).optional(),
   timezone: z.string().default('Asia/Kolkata'),
   paging: PagingSchema.optional(),
-  user_credentials: UserCredentialsSchema  // Optional user-specific credentials
+  user_credentials: UserCredentialsSchema  // REQUIRED user-specific credentials
 });
 
 export type GetReportRequest = z.infer<typeof GetReportRequest>;
@@ -238,12 +238,12 @@ function formatDate(date: Date): string {
  * MUST come from environment variables for security.
  *
  * User-level credentials (refresh_token, login_customer_id) MUST be
- * passed per request.
+ * passed per request - NO fallback to environment variables.
  *
- * @param userCreds - User-specific credentials from request (refresh_token required)
+ * @param userCreds - User-specific credentials from request (REQUIRED, no optional fallback)
  * @returns Complete credentials object for API calls
  */
-export function mergeCredentials(userCreds?: UserCredentials): {
+export function mergeCredentials(userCreds: UserCredentials): {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
@@ -255,9 +255,9 @@ export function mergeCredentials(userCreds?: UserCredentials): {
   const clientSecret = process.env.GOOGLE_ADS_CLIENT_SECRET;
   const developerToken = process.env.GOOGLE_DEVELOPER_TOKEN;
 
-  // User-level credentials - MUST be provided in request
-  const refreshToken = userCreds?.refresh_token;
-  const loginCustomerId = userCreds?.login_customer_id;
+  // User-level credentials - provided in request (validated by Zod)
+  const refreshToken = userCreds.refresh_token;
+  const loginCustomerId = userCreds.login_customer_id;
 
   // Validate app-level credentials are in environment
   if (!clientId || !clientSecret || !developerToken) {
@@ -265,15 +265,6 @@ export function mergeCredentials(userCreds?: UserCredentials): {
       'AUTH',
       'Missing app-level credentials in environment. Set GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, and GOOGLE_DEVELOPER_TOKEN in .env',
       'MISSING_APP_CREDENTIALS'
-    );
-  }
-
-  // Validate user-level credentials
-  if (!refreshToken) {
-    throw createErrorResponse(
-      'AUTH',
-      'Missing refresh_token. Must be provided via user_credentials parameter',
-      'MISSING_REFRESH_TOKEN'
     );
   }
 

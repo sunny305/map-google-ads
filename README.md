@@ -21,28 +21,31 @@ npm install
 
 ### Required Environment Variables
 
-Copy `.env.example` to `.env` and fill in your credentials:
+Copy `.env.example` to `.env` and fill in your **app-level** credentials:
 
 ```bash
-# OAuth2 Credentials (get from Google Cloud Console)
+# App-level OAuth2 Credentials (get from Google Cloud Console)
+# These are shared across all users
 GOOGLE_ADS_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_ADS_CLIENT_SECRET=your-client-secret
-GOOGLE_ADS_REFRESH_TOKEN=your-refresh-token
 
 # Developer Token (from Google Ads API Center)
 GOOGLE_DEVELOPER_TOKEN=your-developer-token
-
-# Login Customer ID (optional, for manager accounts)
-GOOGLE_LOGIN_CUSTOMER_ID=1234567890
 ```
+
+**Note:** `refresh_token` and `login_customer_id` are **NOT** environment variables. They must be passed per-request via the `user_credentials` parameter in each tool call.
 
 ### Getting Credentials
 
+#### App-Level Credentials (in .env):
 1. **Create Google Cloud Project**: https://console.cloud.google.com/
 2. **Enable Google Ads API**: https://console.cloud.google.com/apis/library/googleads.googleapis.com
-3. **Create OAuth 2.0 Credentials**: Create OAuth client ID (Desktop app type)
-4. **Generate Refresh Token**: Use OAuth playground or google-ads-api CLI
-5. **Get Developer Token**: https://ads.google.com/aw/apicenter
+3. **Create OAuth 2.0 Credentials**: Create OAuth client ID (Desktop app type) → Get `GOOGLE_ADS_CLIENT_ID` and `GOOGLE_ADS_CLIENT_SECRET`
+4. **Get Developer Token**: https://ads.google.com/aw/apicenter → Get `GOOGLE_DEVELOPER_TOKEN`
+
+#### User-Level Credentials (per-request):
+5. **Generate Refresh Token**: Each user generates their own refresh token using OAuth playground or google-ads-api CLI
+6. **Pass in Tool Calls**: Include `user_credentials` with `refresh_token` in every tool call
 
 **Important**: Request only **read-only** scopes:
 - `https://www.googleapis.com/auth/adwords` (read-only)
