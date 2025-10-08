@@ -5,7 +5,7 @@
  * For cloud deployment (Render, Railway, etc.)
  */
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
@@ -431,12 +431,12 @@ app.use(express.json());
 const transports = new Map<string, SSEServerTransport>();
 
 // Health check endpoint
-app.get('/health', (_req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // MCP SSE endpoint
-app.get('/mcp/sse', async (_req, res) => {
+app.get('/mcp/sse', async (_req: Request, res: Response) => {
   logger.info('New SSE connection request');
 
   // Create a new MCP server instance for this connection
@@ -459,7 +459,7 @@ app.get('/mcp/sse', async (_req, res) => {
 });
 
 // MCP message endpoint (POST)
-app.post('/mcp/message', async (req, res) => {
+app.post('/mcp/message', async (req: Request, res: Response) => {
   const sessionId = req.query.sessionId as string;
 
   if (!sessionId) {
